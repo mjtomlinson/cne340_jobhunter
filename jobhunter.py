@@ -33,10 +33,14 @@ def query_sql(cursor, query):
 # Add a new job
 def add_new_job(cursor, jobdetails):
     # extract all required columns
+    job_id = jobdetails['id']
+    company = jobdetails['company_name']
+    url = jobdetails['url']
+    title = jobdetails['title']
     description = html2text.html2text(jobdetails['description'])
-    date = jobdetails['publication_date'][0:10]
-    query = cursor.execute("INSERT INTO jobs( Description, Created_at " ") "
-               "VALUES(%s,%s)", (  description, date))
+    publication_date = jobdetails['publication_date'][0:10]
+    query = cursor.execute("INSERT INTO jobs(Job_id, company, title, url, Description, Created_at " ") "
+               "VALUES(%s,%s,%s,%s,%s,%s)", (job_id, company, title, url, description, publication_date))
      # %s is what is needed for Mysqlconnector as SQLite3 uses ? the Mysqlconnector uses %s
     return query_sql(cursor, query)
 
@@ -44,13 +48,13 @@ def add_new_job(cursor, jobdetails):
 # Check if new job
 def check_if_job_exists(cursor, jobdetails):
     ##Add your code here
-    query = "UPDATE"
+    query = "SELECT * FROM jobs WHERE Job_id = \"%s\"" % jobdetails['id']
     return query_sql(cursor, query)
 
 # Deletes job
 def delete_job(cursor, jobdetails):
     ##Add your code here
-    query = "UPDATE"
+    query = "DELETE FROM jobs WHERE Job_id = \"%s\"" % jobdetails['id']
     return query_sql(cursor, query)
 
 
@@ -73,16 +77,23 @@ def jobhunt(cursor):
 
 def add_or_delete_job(jobpage, cursor):
     # Add your code here to parse the job page
+    print("Parsing %s jobs..." % len(jobpage['jobs']))
     for jobdetails in jobpage['jobs']:  # EXTRACTS EACH JOB FROM THE JOB LIST. It errored out until I specified jobs. This is because it needs to look at the jobs dictionary from the API. https://careerkarma.com/blog/python-typeerror-int-object-is-not-iterable/
         # Add in your code here to check if the job already exists in the DB
+        print("Working on job: %s" % jobdetails['id'])
         check_if_job_exists(cursor, jobdetails)
-        is_job_found = len(
-        cursor.fetchall()) > 0  # https://stackoverflow.com/questions/2511679/python-number-of-rows-affected-by-cursor-executeselect
+        is_job_found = len(cursor.fetchall()) > 0  # https://stackoverflow.com/questions/2511679/python-number-of-rows-affected-by-cursor-executeselect
         if is_job_found:
-
+            now = datetime.now()
+            job_date = datetime.strptime(jobdetails['publication_date'], "%Y-%m-%dT%H:%M:%S")
+            if (now - job_date).days > 30:
+                print("Deleting job: " + jobdetails["title"] + " from " + jobdetails["company_name"] + ", Published at: " + jobdetails["publication_date"] + ", JobID: " + str(jobdetails['id']))
+                delete_job(cursor, jobdetails)
         else:
             # INSERT JOB
+            add_new_job(cursor, jobdetails)
             # Add in your code here to notify the user of a new posting. This code will notify the new user
+            print("Found new job: " + jobdetails["title"] + " from " + jobdetails["company_name"] + ", Published at: " + jobdetails["publication_date"] + ", JobID: " + str(jobdetails['id']))
 
 
 
